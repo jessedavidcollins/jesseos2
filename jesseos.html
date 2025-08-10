@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>JesseOS 2.0</title>
+<!-- truncated for brevity -->
+<script>
+(function(){
+  const $ = s=>document.querySelector(s);
+  // Use localStorage for URL and secret instead of hardcoding
+  const apiUrl = ()=>localStorage.getItem('jesse_api_url')||'';
+  const secret = ()=>localStorage.getItem('jesse_secret')||'';
+  const tz = ()=>localStorage.getItem('jesse_tz')||'America/Chicago';
+
+  const now = new Date();
+  $('#today').textContent = now.toLocaleString(undefined,{weekday:'long', month:'short', day:'numeric'});
+  $('#plan_move').value = localStorage.getItem('jesse_default_plan_move')||'Yes';
+  const isAM = now.getHours() < 12;
+  setTab(isAM ? 'am' : 'pm');
+
+  // Settings modal handlers
+  $('#btn-settings').addEventListener('click', ()=>{
+    $('#apiUrl').value = apiUrl();
+    $('#secret').value = secret();
+    $('#tz').value = tz();
+    $('#default_plan_move').value = localStorage.getItem('jesse_default_plan_move')||'Yes';
+    $('#settings').style.display='flex';
+  });
+  $('#btn-close-settings').addEventListener('click', ()=> $('#settings').style.display='none');
+  $('#btn-save-settings').addEventListener('click', ()=>{
+    localStorage.setItem('jesse_api_url',$('#apiUrl').value.trim());
+    localStorage.setItem('jesse_secret',$('#secret').value.trim());
+    localStorage.setItem('jesse_tz',$('#tz').value.trim()||'America/Chicago');
+    localStorage.setItem('jesse_default_plan_move',$('#default_plan_move').value);
+    toast('Settings saved');
+    $('#settings').style.display='none';
+  });
+
+  // Tabs and other functions remain unchanged...
+
+  $('#btn-submit').addEventListener('click', async ()=>{
+    if(!apiUrl()||!secret()) return toast('Open Settings (⚙️) to set API URL & Secret');
+    const date = new Date().toISOString().slice(0,10);
+    const payload = {
+      date,
+      energy_am: v('#energy_am'),
+      mood_am: v('#mood_am'),
+      drive: v('#drive'),
+      plan_move: v('#plan_move')||'Yes',
+      energy_pm: v('#energy_pm'),
+      mood_pm: v('#mood_pm'),
+      nutrition_ok: v('#nutrition_ok'),
+      move_minutes_manual: v('#move_minutes_manual'),
+      connection_today: v('#connection_today'),
+      connection_type: v('#connection_type'),
+      connection_quality: v('#connection_quality'),
+      note: v('#note'),
+      sleep_hours_auto: v('#sleep_hours_auto')
+    };
+
+    try{
+      const res = await fetch(apiUrl(),{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({auth: secret(), data: payload})
+      });
+      const j = await res.json();
+      if(!res.ok) throw new Error(j.error||res.statusText);
+      toast('Saved ✓');
+    }catch(err){
+      console.error(err);
+      toast('Save failed: '+ err.message);
+    }
+  });
+})();
+</script>
+</body>
+</html>
